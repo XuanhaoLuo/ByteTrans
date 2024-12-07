@@ -17,7 +17,7 @@ def decompress_file(input_file_path, output_file_path):
         output_file.write(decompressed_data)
     print(f"File '{input_file_path}' decompressed and saved as '{output_file_path}'")
 
-# 使用示例
+
 #05M
 compress_file('byte_transformer/test/rank_05M/rank20496.txt', 'byte_transformer/test/zlib_rank_05M/rank20496_05M.zlib')
 
