@@ -17,28 +17,28 @@ os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 def load_and_split_data(file_path, separator):
     with open(file_path, 'rb') as file:
         content = file.read()
-    packets = content.split(separator)  # 使用分隔符切分数据包
+    packets = content.split(separator)  
     return packets
 
 
 def clean_packets(packets):
-    return [packet for packet in packets if packet]  # 移除空数据包
+    return [packet for packet in packets if packet]  
 
 
 def prepare_sequences(packets, sequence_length, default_step=32, pad_value=257, end_of_packet_marker=256):
     samples = []
     for packet in packets:
-        # 从uint8转换为int16以便使用更大的值作为特殊标记
+        
         packet_data = np.frombuffer(packet, dtype=np.uint8).astype(np.int16)
-        # 添加结束符
+        
         packet_data = np.append(packet_data, end_of_packet_marker)
-        # 如果数据包长度小于 sequence_length + 1，则进行填充
+        
         if len(packet_data) < sequence_length + 1:
             padding_needed = sequence_length + 1 - len(packet_data)
             packet_data = np.append(packet_data, np.full(padding_needed, pad_value, dtype=np.int16))
-        # 调整步长，确保不超过数据包长度
+        
         step = min(default_step, len(packet_data))
-        # 生成序列
+        
         samples.extend([packet_data[i:i+sequence_length+1] for i in range(0, len(packet_data) - sequence_length, step)])
     return samples
 
@@ -57,7 +57,7 @@ class PacketDataset(Dataset):
         return input_seq, target_seq
 
 
-separator = b'\x00\xFF\x00\xFF'  # 分隔符
+separator = b'\x00\xFF\x00\xFF' 
 packets = load_and_split_data('byte_transformer/data_train/18192.bin', separator)
 packets = clean_packets(packets)
 SEQUENCE_LENGTH = 256  
@@ -184,7 +184,7 @@ def train(model, epochs, dataloader, criterion, optimizer, scheduler, save_path)
             optimizer.zero_grad()
             loss.backward()
             
-            # 梯度裁剪
+            
             utils.clip_grad_norm_(model.parameters(), 1.0)
             
             optimizer.step()
@@ -232,41 +232,41 @@ def read_byte_file(file_path):
     return byte_sequences
 
 def return_byte_vector(byte_sequence):
-    # 将字节列表转换为Tensor，并添加批次维度
+    
     input_tensor = torch.LongTensor(byte_sequence).unsqueeze(0)
     return input_tensor
 
 
 def predict_and_record_ranks(model, byte_sequence):
     model.eval()
-    sequence = [byte_sequence[0]]  # 开始序列，包括第一个字节
-    ranks = [0]  # 第一个字节没有排名，可以设置为0或直接存储第一个字节的值
+    sequence = [byte_sequence[0]]  
+    ranks = [0]  
 
-    # 从第二个字节开始预测每个字节，并记录实际字节的排名
+    
     for actual_byte in byte_sequence[1:]:
-        input_tensor = return_byte_vector(sequence[-SEQUENCE_LENGTH:])  # 使用当前序列来预测下一个字节
+        input_tensor = return_byte_vector(sequence[-SEQUENCE_LENGTH:])  
         input_tensor = input_tensor.to(device)
 
         with torch.no_grad():
             predictions = model(input_tensor)
         
-        # 获取最后一个时间步的预测概率分布
+        
         probabilities = F.softmax(predictions[:, -1, :], dim=-1).cpu()
         sorted_probs, sorted_indices = torch.sort(probabilities, descending=True)
 
-        # 查找实际字节的排名
+        
         rank = (sorted_indices.squeeze() == actual_byte).nonzero(as_tuple=True)[0].item()
-        ranks.append(rank)  # 将排名存储
-        sequence.append(actual_byte)  # 更新序列，添加当前实际字节
+        ranks.append(rank)  
+        sequence.append(actual_byte) 
 
     return ranks
 
 def write_ranks_to_file(byte_sequence, ranks, output_file_path):
     with open(output_file_path, 'a') as file:
-        # 第一个字节写入原始值
+        
         file.write(f"{byte_sequence[0]} ")
-        # 接着写入后续的排名
-        rank_strings = ' '.join(map(str, ranks[1:]))  # 跳过第一个已手动处理的项
+        
+        rank_strings = ' '.join(map(str, ranks[1:]))  
         file.write(rank_strings + '\n')
 
 def main(input_file_path, output_file_path, model_path):
